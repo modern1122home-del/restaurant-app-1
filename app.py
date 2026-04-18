@@ -40,6 +40,7 @@ def init_db():
     """)
 
     db.commit()
+    db.close()
 
 # ================= CART =================
 def get_cart():
@@ -64,6 +65,7 @@ def invoice():
     cur = db.cursor()
     cur.execute("SELECT * FROM products")
     products = cur.fetchall()
+    db.close()
 
     food = [p for p in products if p[3] == "food"]
     drinks = [p for p in products if p[3] == "drink"]
@@ -116,6 +118,7 @@ def save():
         )
 
     db.commit()
+    db.close()
     session["cart"] = {}
 
     return redirect("/invoice?msg=saved")
@@ -199,6 +202,7 @@ def excel(type):
     elif type == "month":
         days = 30
     else:
+        db.close()
         return "خطأ"
 
     start = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
@@ -207,6 +211,8 @@ def excel(type):
         SELECT item, qty, price, (qty*price) as total, date
         FROM orders WHERE date >= ?
     """, db, params=(start,))
+
+    db.close()
 
     if df.empty:
         return "ماكو بيانات"
@@ -222,7 +228,10 @@ def products():
     db = connect()
     cur = db.cursor()
     cur.execute("SELECT * FROM products")
-    return render_template("products.html", products=cur.fetchall())
+    products_data = cur.fetchall()
+    db.close()
+
+    return render_template("products.html", products=products_data)
 
 @app.route("/add_product", methods=["POST"])
 def add_product():
@@ -235,6 +244,8 @@ def add_product():
     )
 
     db.commit()
+    db.close()
+
     return redirect("/products")
 
 @app.route("/delete_product/<id>")
@@ -243,9 +254,12 @@ def delete_product(id):
     cur = db.cursor()
     cur.execute("DELETE FROM products WHERE id=?", (id,))
     db.commit()
+    db.close()
+
     return redirect("/products")
 
 # ================= RUN =================
+init_db()
+
 if __name__ == "__main__":
-    init_db()
     app.run(host="0.0.0.0", port=5000)
