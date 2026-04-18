@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{background:#0f172a;color:white;font-family:Arial}
+.card{background:#1e293b;margin:10px;padding:15px;border-radius:15px}
+input,select{padding:10px;margin:5px}
+button{padding:10px;background:#22c55e;border:none;color:white;border-radius:10px}
+</style>
+</head>
+
+<body>
+
+<a href="/">⬅ رجوع</a>
+
+<h2>📦 المنتجات</h2>
+
+<form method="post" action="/add_product">
+<input name="name" placeholder="اسم المنتج">
+<input name="price" placeholder="السعر">
+
+<select name="category">
+<option value="food">مأكولات</option>
+<option value="drink">مشروبات</option>
+</select>
+
+<button>إضافة</button>
+</form>
+
+{% for p in products %}
+<div class="card">
+{{p[1]}} - {{p[2]}} ({{p[3]}})
+<a href="/delete_product/{{p[0]}}">❌</a>
+</div>
+{% endfor %}
+
+</body>
+</html>

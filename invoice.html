@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{background:#0f172a;color:white;font-family:Arial;margin:0}
+.header{text-align:center;padding:15px;background:#020617}
+.search{width:90%;margin:10px;padding:10px;border-radius:10px;border:none}
+.tabs{display:flex;justify-content:center}
+.tab{padding:10px;margin:5px;background:#1e293b;border-radius:10px;cursor:pointer}
+.tab.active{background:#f97316}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:10px}
+.card{background:#1e293b;padding:20px;border-radius:20px;text-align:center;box-shadow:0 8px 0 #020617}
+.bill{background:#020617;padding:10px}
+.item{display:flex;justify-content:space-between;background:#1e293b;padding:10px;margin:5px;border-radius:10px}
+.qty button{margin:2px;padding:5px;border:none;border-radius:5px;background:#3b82f6;color:white}
+button{padding:10px;border:none;border-radius:10px;color:white}
+.save{background:#22c55e}
+.print{background:#3b82f6}
+.back{background:#ef4444}
+</style>
+
+<script>
+function showTab(x){
+document.getElementById("food").style.display="none";
+document.getElementById("drink").style.display="none";
+document.getElementById(x).style.display="grid";
+}
+function search(val){
+document.querySelectorAll('.card').forEach(c=>{
+c.style.display = c.innerText.toLowerCase().includes(val.toLowerCase()) ? "block":"none";
+});
+}
+</script>
+
+</head>
+
+<body>
+
+<div class="header">🔥 MF POS</div>
+
+<a href="/"><button class="back">⬅ الرئيسية</button></a>
+
+<input class="search" placeholder="🔍 بحث..." onkeyup="search(this.value)">
+
+{% if request.args.get("msg") == "saved" %}
+<div style="background:#22c55e;text-align:center;padding:10px;">✅ تم الحفظ</div>
+{% endif %}
+
+<div class="tabs">
+<div class="tab" onclick="showTab('food')">🍔 مأكولات</div>
+<div class="tab" onclick="showTab('drink')">🥤 مشروبات</div>
+</div>
+
+<div id="food" class="grid">
+{% for p in food %}
+<form method="post" action="/add_to_cart">
+<input type="hidden" name="item" value="{{p[1]}}">
+<input type="hidden" name="price" value="{{p[2]}}">
+<div class="card" onclick="this.parentNode.submit()">
+{{p[1]}}<br>{{p[2]}}
+</div>
+</form>
+{% endfor %}
+</div>
+
+<div id="drink" class="grid" style="display:none;">
+{% for p in drinks %}
+<form method="post" action="/add_to_cart">
+<input type="hidden" name="item" value="{{p[1]}}">
+<input type="hidden" name="price" value="{{p[2]}}">
+<div class="card" onclick="this.parentNode.submit()">
+{{p[1]}}<br>{{p[2]}}
+</div>
+</form>
+{% endfor %}
+</div>
+
+<div class="bill">
+
+{% for item,data in cart.items() %}
+<div class="item">
+<span>{{item}} × {{data.qty}}</span>
+
+<div class="qty">
+<form method="post" action="/update_qty">
+<input type="hidden" name="name" value="{{item}}">
+<input type="hidden" name="action" value="plus">
+<button>+</button>
+</form>
+
+<form method="post" action="/update_qty">
+<input type="hidden" name="name" value="{{item}}">
+<input type="hidden" name="action" value="minus">
+<button>-</button>
+</form>
+</div>
+
+</div>
+{% endfor %}
+
+<a href="/save"><button class="save">💾 حفظ</button></a>
+<a href="/print_pdf"><button class="print">🖨 طباعة</button></a>
+
+</div>
+
+</body>
+</html>
