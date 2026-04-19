@@ -7,6 +7,7 @@ body{background:#0f172a;color:white;font-family:Arial}
 .card{background:#1e293b;margin:10px;padding:15px;border-radius:15px}
 input,select{padding:10px;margin:5px}
 button{padding:10px;background:#22c55e;border:none;color:white;border-radius:10px}
+a{color:white}
 </style>
 </head>
 
@@ -17,8 +18,8 @@ button{padding:10px;background:#22c55e;border:none;color:white;border-radius:10p
 <h2>📦 المنتجات</h2>
 
 <form method="post" action="/add_product">
-<input name="name" placeholder="اسم المنتج">
-<input name="price" placeholder="السعر">
+<input name="name" placeholder="اسم المنتج" required>
+<input name="price" placeholder="السعر" required>
 
 <select name="category">
 <option value="food">مأكولات</option>
@@ -30,8 +31,8 @@ button{padding:10px;background:#22c55e;border:none;color:white;border-radius:10p
 
 {% for p in products %}
 <div class="card">
-{{p[1]}} - {{p[2]}} ({{p[3]}})
-<a href="/delete_product/{{p[0]}}">❌</a>
+{{ p["name"] }} - {{ p["price"] }} ({{ p["category"] }})
+<a href="/delete_product/{{ p["id"] }}">❌</a>
 </div>
 {% endfor %}
 
