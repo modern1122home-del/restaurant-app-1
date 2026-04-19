@@ -231,7 +231,20 @@ def excel(type):
         return "ماكو بيانات"
 
     file = f"report_{type}.xlsx"
-    df.to_excel(file, index=False)
+
+    with pd.ExcelWriter(file, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Report")
+
+        ws = writer.sheets["Report"]
+
+        # مجموع العمود total
+        total_sum = df["total"].sum()
+
+        # آخر سطر بعد البيانات
+        last_row = len(df) + 3
+
+        ws[f"D{last_row}"] = "المجموع الكلي"
+        ws[f"E{last_row}"] = float(total_sum)
 
     return send_file(file, as_attachment=True)
 
