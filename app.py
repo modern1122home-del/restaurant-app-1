@@ -1,7 +1,9 @@
 from flask import Flask, render_template, request, redirect, send_file, session
-import sqlite3
+import os
 from datetime import datetime, timedelta
 import pandas as pd
+import psycopg2
+import psycopg2.extras
 
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib import colors
@@ -13,33 +15,36 @@ app = Flask(__name__)
 app.secret_key = "mf-secret"
 
 # ================= DB =================
+DATABASE_URL = os.getenv("DATABASE_URL")
+
 def connect():
-    return sqlite3.connect("restaurant.db")
+    return psycopg2.connect(DATABASE_URL)
 
 def init_db():
     db = connect()
     cur = db.cursor()
 
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS products(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        price INTEGER,
+    CREATE TABLE IF NOT EXISTS products (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        price NUMERIC(10,2) NOT NULL,
         category TEXT
     )
     """)
 
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS orders(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        item TEXT,
-        price INTEGER,
-        qty INTEGER,
-        date TEXT
+    CREATE TABLE IF NOT EXISTS orders (
+        id SERIAL PRIMARY KEY,
+        item TEXT NOT NULL,
+        price NUMERIC(10,2) NOT NULL,
+        qty INTEGER NOT NULL,
+        date TEXT NOT NULL
     )
     """)
 
     db.commit()
+    cur.close()
     db.close()
 
 # ================= CART =================
@@ -62,20 +67,21 @@ def home():
 @app.route("/invoice")
 def invoice():
     db = connect()
-    cur = db.cursor()
-    cur.execute("SELECT * FROM products")
+    cur = db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM products ORDER BY id ASC")
     products = cur.fetchall()
+    cur.close()
     db.close()
 
-    food = [p for p in products if p[3] == "food"]
-    drinks = [p for p in products if p[3] == "drink"]
+    food = [p for p in products if p["category"] == "food"]
+    drinks = [p for p in products if p["category"] == "drink"]
 
     return render_template("invoice.html", food=food, drinks=drinks, cart=get_cart())
 
 @app.route("/add_to_cart", methods=["POST"])
 def add_to_cart():
     name = request.form["item"]
-    price = int(request.form["price"])
+    price = float(request.form["price"])
     cart = get_cart()
 
     if name in cart:
@@ -113,11 +119,12 @@ def save():
 
     for item, data in cart.items():
         cur.execute(
-            "INSERT INTO orders(item,price,qty,date) VALUES(?,?,?,?)",
+            "INSERT INTO orders(item, price, qty, date) VALUES(%s, %s, %s, %s)",
             (item, data["price"], data["qty"], today)
         )
 
     db.commit()
+    cur.close()
     db.close()
     session["cart"] = {}
 
@@ -128,20 +135,24 @@ def save():
 def print_pdf():
     cart = get_cart()
 
-    pdfmetrics.registerFont(TTFont("Arabic", "Arial.ttf"))
+    try:
+        pdfmetrics.registerFont(TTFont("Arabic", "Arial.ttf"))
+        font_name = "Arabic"
+    except:
+        font_name = "Helvetica"
 
     doc = SimpleDocTemplate("invoice.pdf")
 
     arabic_style = ParagraphStyle(
         name="Arabic",
-        fontName="Arabic",
+        fontName=font_name,
         fontSize=12,
         alignment=2
     )
 
     title_style = ParagraphStyle(
         name="TitleArabic",
-        fontName="Arabic",
+        fontName=font_name,
         fontSize=16,
         alignment=1
     )
@@ -207,11 +218,13 @@ def excel(type):
 
     start = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
 
-    df = pd.read_sql_query("""
-        SELECT item, qty, price, (qty*price) as total, date
-        FROM orders WHERE date >= ?
-    """, db, params=(start,))
-
+    query = """
+        SELECT item, qty, price, (qty * price) AS total, date
+        FROM orders
+        WHERE date >= %s
+        ORDER BY id DESC
+    """
+    df = pd.read_sql_query(query, db, params=(start,))
     db.close()
 
     if df.empty:
@@ -226,9 +239,10 @@ def excel(type):
 @app.route("/products")
 def products():
     db = connect()
-    cur = db.cursor()
-    cur.execute("SELECT * FROM products")
+    cur = db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM products ORDER BY id DESC")
     products_data = cur.fetchall()
+    cur.close()
     db.close()
 
     return render_template("products.html", products=products_data)
@@ -239,11 +253,12 @@ def add_product():
     cur = db.cursor()
 
     cur.execute(
-        "INSERT INTO products(name,price,category) VALUES(?,?,?)",
+        "INSERT INTO products(name, price, category) VALUES(%s, %s, %s)",
         (request.form["name"], request.form["price"], request.form["category"])
     )
 
     db.commit()
+    cur.close()
     db.close()
 
     return redirect("/products")
@@ -252,8 +267,9 @@ def add_product():
 def delete_product(id):
     db = connect()
     cur = db.cursor()
-    cur.execute("DELETE FROM products WHERE id=?", (id,))
+    cur.execute("DELETE FROM products WHERE id = %s", (id,))
     db.commit()
+    cur.close()
     db.close()
 
     return redirect("/products")
